@@ -1,108 +1,151 @@
-let selectedLang = "all";
+document.addEventListener('DOMContentLoaded', () => {
+  const coursesGrid = document.getElementById('courses-grid');
+  const coursesCount = document.getElementById('courses-count');
 
-document.addEventListener("DOMContentLoaded", () => {
-  console.log("App initialized");
-});
+  const techSelect = document.getElementById('tech-select');
+  const levelSelect = document.getElementById('level-select');
+  const searchInput = document.getElementById('search-input');
+  const clearBtn = document.getElementById('clear-btn');
+  const flagBtns = document.querySelectorAll('.flag-btn');
+  
+  const priceMinSlider = document.getElementById('price-min');
+  const priceMaxSlider = document.getElementById('price-max');
+  const priceMinDisplay = document.getElementById('price-min-display');
+  const priceMaxDisplay = document.getElementById('price-max-display');
 
-function renderCourses(courses) {
-  const coursesGrid = document.getElementById("courses-grid");
-  const coursesCount = document.getElementById("courses-count");
-
-  coursesGrid.innerHTML = "";
-  coursesCount.textContent = courses.length;
-
-  if (courses.length === 0) {
-    coursesGrid.innerHTML = `<p class="no-results">Aucun cours trouvé.</p>`;
-    return;
+  const hamburger = document.querySelector('.hamburger');
+  const navMenu = document.querySelector('.nav-menu');
+  if (hamburger && navMenu) {
+    hamburger.addEventListener('click', () => {
+      hamburger.classList.toggle('active');
+      navMenu.classList.toggle('active');
+    });
   }
 
-  courses.forEach(course => {
-    const card = document.createElement("div");
-    card.className = "course-card";
-    card.innerHTML = `
-      <span class="badge">${course.tech}</span>
-      <h3>${course.title}</h3>
-      <p>Niveau: ${course.level} | Langue: ${course.lang}</p>
-      <div class="price">${course.price.toLocaleString()} Ar</div>
-    `;
-    coursesGrid.appendChild(card);
-  });
-}
+  let selectedLang = 'all';
 
-function setupControls() {
-  const flagBtns = document.querySelectorAll(".flag-btn");
-  const priceMin = document.getElementById("price-min");
-  const priceMax = document.getElementById("price-max");
-  const priceMinDisplay = document.getElementById("price-min-display");
-  const priceMaxDisplay = document.getElementById("price-max-display");
+  function updateSliderBackground(slider) {
+    const val = Number(slider.value);
+    const min = Number(slider.min);
+    const max = Number(slider.max);
+    const percentage = ((val - min) / (max - min)) * 100;
+    slider.style.background = `linear-gradient(to right, #c91818 0%, #c91818 ${percentage}%, #d5d5d5 ${percentage}%, #d5d5d5 100%)`;
+  }
+
+  function renderCourses(list) {
+    coursesGrid.innerHTML = '';
+    coursesCount.textContent = list.length;
+
+    if (list.length === 0) {
+      coursesGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #888; padding: 2rem;">No courses found.</p>';
+      return;
+    }
+
+    list.forEach(course => {
+      const formattedPrice = new Intl.NumberFormat('en-US').format(course.price);
+      const card = document.createElement('div');
+      card.className = 'course-card';
+      card.innerHTML = `
+        <div class="card-image-wrapper">
+          <img src="${course.image}" alt="${course.title}">
+          <span class="badge-lang-pill">${course.language}</span>
+          <span class="badge-tech-pill">${course.technology}</span>
+          <span class="badge-level-rect">${course.level}</span>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">${course.title}</h3>
+          <div class="card-price">MGA ${formattedPrice}</div>
+          <p class="card-desc">${course.description}</p>
+          <div class="card-actions">
+            <button class="btn-learn">Learn more</button>
+            <button class="btn-add">Add to cart</button>
+          </div>
+        </div>
+      `;
+      coursesGrid.appendChild(card);
+    });
+  }
+
+  function filterCourses() {
+    const selectedTech = techSelect.value;
+    const selectedLevel = levelSelect.value;
+    const currentMin = Number(priceMinSlider.value);
+    const currentMax = Number(priceMaxSlider.value);
+    const searchKeyword = searchInput.value.toLowerCase().trim();
+
+    const filtered = coursesData.filter(course => {
+      const matchLang = selectedLang === 'all' || course.language === selectedLang;
+      const matchTech = selectedTech === 'all' || course.technology === selectedTech;
+      const matchLevel = selectedLevel === 'all' || course.level === selectedLevel;
+      const matchPrice = course.price >= currentMin && course.price <= currentMax;
+      const matchSearch = course.title.toLowerCase().includes(searchKeyword) ||
+                          course.description.toLowerCase().includes(searchKeyword);
+
+      return matchLang && matchTech && matchLevel && matchPrice && matchSearch;
+    });
+
+    renderCourses(filtered);
+  }
 
   flagBtns.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const lang = btn.getAttribute("data-lang");
-      if (selectedLang === lang) {
-        selectedLang = "all";
-        btn.classList.remove("active");
+    btn.addEventListener('click', (e) => {
+      const clickedLang = e.currentTarget.getAttribute('data-lang');
+
+      if (e.currentTarget.classList.contains('active')) {
+        e.currentTarget.classList.remove('active');
+        selectedLang = 'all';
       } else {
-        flagBtns.forEach(b => b.classList.remove("active"));
-        selectedLang = lang;
-        btn.classList.add("active");
+        flagBtns.forEach(b => b.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        selectedLang = clickedLang;
       }
-      applyFilters();
+      filterCourses();
     });
   });
 
-  priceMin.addEventListener("input", () => {
-    if (parseInt(priceMin.value) > parseInt(priceMax.value)) priceMin.value = priceMax.value;
-    priceMinDisplay.textContent = parseInt(priceMin.value).toLocaleString();
-    applyFilters();
+  techSelect.addEventListener('change', filterCourses);
+  levelSelect.addEventListener('change', filterCourses);
+
+  priceMinSlider.addEventListener('input', () => {
+    if (Number(priceMinSlider.value) > Number(priceMaxSlider.value)) {
+      priceMinSlider.value = priceMaxSlider.value;
+    }
+    priceMinDisplay.textContent = new Intl.NumberFormat('en-US').format(priceMinSlider.value);
+    updateSliderBackground(priceMinSlider);
+    filterCourses();
   });
 
-  priceMax.addEventListener("input", () => {
-    if (parseInt(priceMax.value) < parseInt(priceMin.value)) priceMax.value = priceMin.value;
-    priceMaxDisplay.textContent = parseInt(priceMax.value).toLocaleString();
-    applyFilters();
-  });
-}
-
-function applyFilters() {
-  const techValue = document.getElementById("tech-select").value;
-  const levelValue = document.getElementById("level-select").value;
-  const searchValue = document.getElementById("search-input").value.toLowerCase().trim();
-  const minPrice = parseInt(document.getElementById("price-min").value);
-  const maxPrice = parseInt(document.getElementById("price-max").value);
-
-  const filtered = COURSES_DATA.filter(course => {
-    const matchTech = techValue === "all" || course.tech === techValue;
-    const matchLevel = levelValue === "all" || course.level === levelValue;
-    const matchLang = selectedLang === "all" || course.lang === selectedLang;
-    const matchSearch = course.title.toLowerCase().includes(searchValue);
-    const matchPrice = course.price >= minPrice && course.price <= maxPrice;
-
-    return matchTech && matchLevel && matchLang && matchSearch && matchPrice;
+  priceMaxSlider.addEventListener('input', () => {
+    if (Number(priceMaxSlider.value) < Number(priceMinSlider.value)) {
+      priceMaxSlider.value = priceMinSlider.value;
+    }
+    priceMaxDisplay.textContent = new Intl.NumberFormat('en-US').format(priceMaxSlider.value);
+    updateSliderBackground(priceMaxSlider);
+    filterCourses();
   });
 
-  renderCourses(filtered);
-}
+  searchInput.addEventListener('input', filterCourses);
 
-document.addEventListener("DOMContentLoaded", () => {
-  setupControls();
+  clearBtn.addEventListener('click', () => {
+    selectedLang = 'all';
+    flagBtns.forEach(b => b.classList.remove('active'));
 
-  document.getElementById("tech-select").addEventListener("change", applyFilters);
-  document.getElementById("level-select").addEventListener("change", applyFilters);
-  document.getElementById("search-input").addEventListener("input", applyFilters);
+    techSelect.value = 'all';
+    levelSelect.value = 'all';
+    
+    priceMinSlider.value = 0;
+    priceMaxSlider.value = 300000;
+    priceMinDisplay.textContent = '0';
+    priceMaxDisplay.textContent = '300,000';
+    
+    searchInput.value = '';
 
-  document.getElementById("clear-btn").addEventListener("click", () => {
-    document.getElementById("tech-select").value = "all";
-    document.getElementById("level-select").value = "all";
-    document.getElementById("search-input").value = "";
-    document.getElementById("price-min").value = 0;
-    document.getElementById("price-max").value = 300000;
-    document.getElementById("price-min-display").textContent = "0";
-    document.getElementById("price-max-display").textContent = "300,000";
-    selectedLang = "all";
-    document.querySelectorAll(".flag-btn").forEach(b => b.classList.remove("active"));
-    applyFilters();
+    updateSliderBackground(priceMinSlider);
+    updateSliderBackground(priceMaxSlider);
+    filterCourses();
   });
 
-  renderCourses(COURSES_DATA);
+  updateSliderBackground(priceMinSlider);
+  updateSliderBackground(priceMaxSlider);
+  renderCourses(coursesData);
 });
